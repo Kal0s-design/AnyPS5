@@ -951,7 +951,13 @@ void decodeShaderInfo(Reader& reader, ShaderInfo& info) {
     });
     bool preparedImageModes = false;
     reader.Value(preparedImageModes);
-    if (preparedImageModes) ResourceMaterializer::PrepareImageModes(info);
+    if (preparedImageModes) {
+        try {
+            ResourceMaterializer::PrepareImageModes(info);
+        } catch (const std::runtime_error&) {
+            reader.Fail();
+        }
+    }
     reader.List(info.samplers, 21, [](Reader& in, SamplerResource& sampler) {
         in.Value(sampler.source);
         in.Value(sampler.firstUsePc);

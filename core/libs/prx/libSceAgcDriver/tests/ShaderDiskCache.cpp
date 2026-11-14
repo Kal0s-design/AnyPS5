@@ -540,6 +540,13 @@ void verifyEntryRoundTrip() {
     auto longer = file;
     longer.push_back(std::byte{0});
     require(ShaderDiskCache::DecodeEntry(longer, key, decoded) == ShaderDiskCache::LoadStatus::Rejected, "an entry with a trailing byte is not rejected");
+    auto modeless = sampleVariant();
+    ResourceMaterializer::PrepareImageModes(modeless.info.info);
+    modeless.info.info.images[0].targetMerge = false;
+    modeless.info.info.images[0].table = NoTable;
+    modeless.info.info.images[0].packed = true;
+    modeless.info.info.images[0].byElements = 41u;
+    require(ShaderDiskCache::DecodeEntry(ShaderDiskCache::EncodeEntry(key, modeless), key, decoded) == ShaderDiskCache::LoadStatus::Rejected, "an entry whose packed image has no runtime mode is not rejected");
     auto otherKey = key;
     otherKey.back() ^= std::byte{1};
     require(ShaderDiskCache::DecodeEntry(file, otherKey, decoded) == ShaderDiskCache::LoadStatus::KeyMismatch, "an entry for another key loads");
@@ -2388,6 +2395,10 @@ void verifyMalformedPlans() {
     rejects("a materialized source past the sources", [](IrResourcePlan& plan) { plan.materializationSources.push_back(4u); });
     rejects("a buffer past the sources", [](IrResourcePlan& plan) { plan.info.buffers[0].source = 4u; });
     rejects("an image past the sources", [](IrResourcePlan& plan) { plan.info.images[0].source = 5u; });
+    rejects("a packed image with no runtime mode", [](IrResourcePlan& plan) {
+        plan.info.images[0].packed = true;
+        plan.info.images[0].byElements = 41u;
+    });
     rejects("a descriptor of nine dwords", [](IrResourcePlan& plan) { plan.descriptorSources[1].dwordCount = 9u; });
     rejects("a uniform fill of five words", [](IrResourcePlan& plan) { plan.uniformFill.fill.words = 5u; });
     rejects("an image table heap past the sources", [](IrResourcePlan& plan) { plan.descriptorSources[1].tableColumn->heapSource = 4u; });
