@@ -173,10 +173,12 @@ bool TakePending(int guest, std::int32_t* code = nullptr) {
     return TakePendingLocked(guest, code);
 }
 
-void DiscardPendingIfIgnored(int guest, const GuestSigaction& action) {
-    if (action.handler != 1 && !(action.handler == 0 && IgnoredByDefault(guest))) return;
+bool DiscardsPending(int guest, std::uintptr_t handler) {
+    return handler == 1 || (handler == 0 && IgnoredByDefault(guest));
+}
+
+void DiscardPendingLocked(int guest) {
     auto& pending = Pending();
-    std::lock_guard lock(pending.lock);
     pending.queued[guest].clear();
     pending.words[SignalWord(guest)].fetch_and(~SignalBit(guest), std::memory_order_relaxed);
 }
@@ -675,13 +677,15 @@ extern "C" {
 GuestHandler APS5_VABI signal_nid_postfix(int guest, GuestHandler handler) {
     const auto invalid = reinterpret_cast<GuestHandler>(static_cast<std::uintptr_t>(-1));
     if (guest < 1 || guest > MaxSignal || ((guest == GuestSigkill || guest == GuestSigstop) && handler != nullptr)) { *__error_nid_postfix() = 22; return invalid; }
+    std::unique_lock discard(Pending().lock, std::defer_lock);
+    if (DiscardsPending(guest, reinterpret_cast<std::uintptr_t>(handler))) discard.lock();
     std::lock_guard lock(registration);
     SettleReset(guest);
     const GuestSigaction action{reinterpret_cast<std::uintptr_t>(handler), SignalInSet(_sigintr_nid_postfix, guest) ? 0 : SaRestart, {}};
     if (!Install(guest, action)) { *__error_nid_postfix() = 22; return invalid; }
     const auto previous = reinterpret_cast<GuestHandler>(dispositions[guest].handler);
     dispositions[guest] = action;
-    DiscardPendingIfIgnored(guest, action);
+    if (discard.owns_lock()) DiscardPendingLocked(guest);
     return previous;
 }
 int APS5_VABI sigaction_nid_postfix(int guest, const GuestSigaction* action, GuestSigaction* previous) {
@@ -693,13 +697,15 @@ int APS5_VABI sigaction_nid_postfix(int guest, const GuestSigaction* action, Gue
     if (guest < 1 || guest > MaxSignal) { *__error_nid_postfix() = 22; return -1; }
     if (action && action->handler > 1 && (action->flags & ~SaDefinedFlags) != 0) { *__error_nid_postfix() = 22; return -1; }
     if (action && (guest == GuestSigkill || guest == GuestSigstop) && action->handler != 0) { *__error_nid_postfix() = 22; return -1; }
+    std::unique_lock discard(Pending().lock, std::defer_lock);
+    if (action && DiscardsPending(guest, action->handler)) discard.lock();
     std::lock_guard lock(registration);
     SettleReset(guest);
     const GuestSigaction old = dispositions[guest];
     if (action) {
         if (!Install(guest, *action)) { *__error_nid_postfix() = 22; return -1; }
         dispositions[guest] = *action;
-        DiscardPendingIfIgnored(guest, *action);
+        if (discard.owns_lock()) DiscardPendingLocked(guest);
     }
     if (previous && !GuestCopyOut_nid_no_patch(previous, &old, sizeof(old))) { *__error_nid_postfix() = 14; return -1; }
     return 0;

@@ -1544,6 +1544,16 @@ if(BUILD_TESTING)
         set_tests_properties(guest_signal_interrupt PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
     endif()
+    add_test_executable(guest_signal_suspend_disposition_tests ${LIBS_INCLUDE_DIR}/tests/GuestSignalSuspendDisposition.cpp)
+    target_include_directories(guest_signal_suspend_disposition_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_signal_suspend_disposition_tests PRIVATE libkernel libSceLibcInternal libc)
+    configure_windows_unwind(guest_signal_suspend_disposition_tests)
+    add_test(NAME guest_signal_suspend_disposition COMMAND guest_signal_suspend_disposition_tests)
+    set_tests_properties(guest_signal_suspend_disposition PROPERTIES TIMEOUT 30)
+    if(WIN32)
+        set_tests_properties(guest_signal_suspend_disposition PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
+    endif()
     if(WIN32)
         set_tests_properties(guest_signals PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
