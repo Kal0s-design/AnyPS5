@@ -3,11 +3,13 @@
 #include "prx/libc/include/Api.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <thread>
 #ifndef _WIN32
 #include <csignal>
 #endif
@@ -126,7 +128,10 @@ int main() {
     Require(Readable(server, In | Hup) && read_nid_postfix(server, received, sizeof(received)) == 0);
     Require(sceKernelRead(server, received, sizeof(received)) == 0);
     std::int64_t written = 0;
-    for (int i = 0; i < 100 && written >= 0; ++i) written = write_nid_postfix(server, request, sizeof(request));
+    for (int i = 0; i < 100 && written >= 0; ++i) {
+        written = write_nid_postfix(server, request, sizeof(request));
+        if (written >= 0) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
     Require(written == -1 && *__error_nid_postfix() == 32);
     Require(close_nid_postfix(server) == 0);
     *__error_nid_postfix() = 0;
