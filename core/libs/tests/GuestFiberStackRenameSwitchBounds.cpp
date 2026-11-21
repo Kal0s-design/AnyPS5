@@ -38,8 +38,7 @@ void APS5_VABI SmallStackEntry(std::uint64_t, std::uint64_t) {
     Require(sceFiberGetInfo(g_fiberA, &info) == SCE_OK);
     Require(info.size_context == sizeof(g_smallContext));
 
-    volatile std::uint64_t marker = 0x1122334455667788ull;
-    const auto markerAddr = reinterpret_cast<std::uintptr_t>(&marker);
+    const auto markerAddr = reinterpret_cast<std::uintptr_t>(__builtin_frame_address(0));
     const auto low = reinterpret_cast<std::uintptr_t>(info.addr_context);
     const auto high = low + info.size_context;
     Require(markerAddr >= low && markerAddr < high);
@@ -54,8 +53,7 @@ void APS5_VABI LargeStackEntry(std::uint64_t, std::uint64_t) {
     Require(info.size_context == sizeof(g_largeContext));
     Require(info.addr_context == g_largeContext);
 
-    volatile std::uint64_t marker = 0x8877665544332211ull;
-    const auto markerAddr = reinterpret_cast<std::uintptr_t>(&marker);
+    const auto markerAddr = reinterpret_cast<std::uintptr_t>(__builtin_frame_address(0));
     const auto low = reinterpret_cast<std::uintptr_t>(g_largeContext);
     const auto high = low + sizeof(g_largeContext);
     Require(markerAddr >= low && markerAddr < high);
