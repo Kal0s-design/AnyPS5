@@ -154,7 +154,7 @@ extern "C" NKWebKit::WtfAbi::String APS5_VABI _ZN3WTF28displayNameForLanguageLoc
     if (!localeName) throw std::invalid_argument("null WTF string");
     const int savedErrno = errno;
     NKWebKit::WtfAbi::StringImpl* impl = nullptr;
-    bool copied = GuestCopyIn_nid_no_patch(&impl, &localeName->impl, sizeof(impl));
+    bool copied = GuestCopyIn_nid_no_patch(&impl, localeName, sizeof(impl));
     errno = savedErrno;
     if (!copied) throw std::invalid_argument("WTF::displayNameForLanguageLocale: unreadable string");
     if (!impl) return String();
