@@ -516,8 +516,10 @@ int CallbackExoticSetProperty(JSContext* qctx, JSValueConst obj, JSAtom prop, JS
                 JS_FreeValue(qctx, protoDesc.getter);
                 JS_FreeValue(qctx, protoDesc.setter);
                 JS_FreeValue(qctx, protoDesc.value);
-                JS_FreeValue(qctx, curProto);
-                if (!writable) return RefuseSetAsTheEngineDoes(qctx, prop, value, flags, SetRefusal::ReadOnly);
+                if (!writable) {
+                    JS_FreeValue(qctx, curProto);
+                    return RefuseSetAsTheEngineDoes(qctx, prop, value, flags, SetRefusal::ReadOnly);
+                }
                 break;
             }
             JSValue nextProto = JS_GetPrototype(qctx, curProto);
