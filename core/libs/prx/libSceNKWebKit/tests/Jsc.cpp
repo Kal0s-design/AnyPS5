@@ -1021,6 +1021,23 @@ bool APS5_VABI NumbersAreInstances(JSContextRef ctx, JSObjectRef constructor, JS
     return JSValueIsNumber(ctx, possibleInstance);
 }
 
+void TestCopyPropertyNamesOverThrowingPrototype() {
+    JSGlobalContextRef ctx = JSGlobalContextCreate(nullptr);
+    JSValueRef guarded = EvalUtf8(ctx, "globalThis.guardedNames = new Proxy({seen: 1}, {getPrototypeOf() { throw new Error('no prototype'); }}); globalThis.guardedNames");
+    Require(guarded != nullptr);
+    JSObjectRef object = JSValueToObject(ctx, guarded, nullptr);
+    Require(object != nullptr);
+    for (int round = 0; round < 64; ++round) {
+        JSPropertyNameArrayRef names = JSObjectCopyPropertyNames(ctx, object);
+        Require(names != nullptr && JSPropertyNameArrayGetCount(names) == 1);
+        Require(JSStringIsEqualToUTF8CString(JSPropertyNameArrayGetNameAtIndex(names, 0), "seen"));
+        JSPropertyNameArrayRelease(names);
+    }
+    JSGarbageCollect(ctx);
+    Require(JSValueToBoolean(ctx, EvalUtf8(ctx, "Object.keys(globalThis.guardedNames).length === 1 && globalThis.guardedNames.seen === 1")));
+    JSGlobalContextRelease(ctx);
+}
+
 void TestObjectCallsAndPropertyAttributes() {
     JSGlobalContextRef ctx = JSGlobalContextCreate(nullptr);
     JSObjectRef global = JSContextGetGlobalObject(ctx);
@@ -1177,6 +1194,7 @@ int main() {
     TestGcProtectWeakAndWatchdog();
     TestNullValueRefs();
     TestBigIntAndProxyTypes();
+    TestCopyPropertyNamesOverThrowingPrototype();
     TestObjectCallsAndPropertyAttributes();
     return 0;
 }

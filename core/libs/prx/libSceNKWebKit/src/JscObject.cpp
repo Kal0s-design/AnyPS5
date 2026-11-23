@@ -1962,6 +1962,7 @@ JSPropertyNameArrayRef APS5_VABI JSObjectCopyPropertyNames(JSContextRef ctx, JSO
         JS_FreeValue(mutCtx->qctx, cur);
         if (JS_IsException(next)) {
             JS_FreeValue(mutCtx->qctx, JS_GetException(mutCtx->qctx));
+            cur = JS_UNDEFINED;
             break;
         }
         cur = next;
