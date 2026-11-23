@@ -25,7 +25,7 @@ UEnumeration* APS5_VABI uloc_openKeywordList_nid_postfix(const char* keywordList
                 if (keywords.back() != '\0')
                     throw std::invalid_argument("uloc_openKeywordList: keyword list does not end with a NUL");
             }
-            return uloc_openKeywordList(keywords.data(), keywordListSize, local);
+            return uloc_openKeywordList(keywords.empty() ? "" : keywords.data(), keywordListSize, local);
         },
         __func__);
 }
