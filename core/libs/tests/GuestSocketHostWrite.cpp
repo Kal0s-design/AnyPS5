@@ -316,6 +316,25 @@ int main(int argc, char** argv) {
         Require(receive(recovery.data(), recovery.size(), 0, nullptr, nullptr) == sizeof(payload),
             "a rejected message preserves queued data");
         Require(sceKernelMprotect(twin, page, 3) == 0, "restore receive message write permission");
+        if (!stream) {
+            auto* name = static_cast<unsigned char*>(twin) + 32;
+            {
+                const GuestArena::HostWrite destination(name, 16);
+                Require(destination.Open(), "initialize the receive message name");
+                std::memset(name, 0xa5, 16);
+            }
+            NetMsghdr named{name, 16, vectors, 3, nullptr, 0, 0};
+            Require(sceKernelMprotect(twin, page, 1) == 0, "make the receive message name read-only");
+            send();
+            waitForPacket();
+            Require(sceNetRecvmsg(receiver, &named, 0) == static_cast<int>(0x8041010eu) && *error == 14,
+                "a read-only message name fails with EFAULT");
+            Require(std::all_of(name, name + 16, [](unsigned char value) { return value == 0xa5; }),
+                "a rejected message name stays unchanged");
+            Require(receive(recovery.data(), recovery.size(), 0, nullptr, nullptr) == sizeof(payload),
+                "a rejected message name preserves queued data");
+            Require(sceKernelMprotect(twin, page, 3) == 0, "restore receive message name write permission");
+        }
         reset();
         collect();
     }

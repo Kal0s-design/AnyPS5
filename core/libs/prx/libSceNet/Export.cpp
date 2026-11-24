@@ -1989,6 +1989,10 @@ static int64_t ReceiveMessage(int s, NetMsghdr* msg, int flags) {
         if (!destinations.emplace_back(entry.base, static_cast<std::size_t>(entry.length)).Open()) return fail(NET_EFAULT);
     }
     const bool datagram = socket.type != NET_SOCK_STREAM;
+    const auto nameBytes = header.name && datagram ?
+        std::min<std::uint32_t>(header.name_length, socket.family == NET_AF_INET ? 16u : 28u) : 0u;
+    const GuestArena::HostWrite nameOutput(nameBytes == 0 ? nullptr : header.name, nameBytes);
+    if (!nameOutput.Open()) return fail(NET_EFAULT);
 #if defined(_WIN32) || defined(__APPLE__)
     if (const int wait = wait_for_local_address(s, socket, total == 0, flags)) {
         if (wait != RECEIVE_NOTHING) return fail(wait);
