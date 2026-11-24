@@ -20,7 +20,9 @@
 #include "prx/libc/include/General.hpp"
 
 #include <cerrno>
+#include <cstddef>
 #include <iterator>
+#include <type_traits>
 
 namespace {
 
@@ -34,11 +36,16 @@ TValue Read(const TValue* source, const char* function) {
     return value;
 }
 
+template <typename TValue>
+TValue ReadAt(const void* owner, std::size_t offset, const char* function) {
+    return Read(reinterpret_cast<const TValue*>(static_cast<const char*>(owner) + offset), function);
+}
+
 void* Request(FreeType::GuestServiceModuleRec* module, const char* serviceId, const char* function) {
     if (!module) NotImplemented_nid_no_patch(function);
-    const auto* clazz = Read(&module->clazz, function);
+    const auto* clazz = ReadAt<FreeType::GuestModuleClass*>(module, offsetof(FreeType::GuestServiceModuleRec, clazz), function);
     if (!clazz) NotImplemented_nid_no_patch(function);
-    const auto requester = reinterpret_cast<FreeType::GuestServiceRequester>(Read(&clazz->get_interface, function));
+    const auto requester = reinterpret_cast<FreeType::GuestServiceRequester>(ReadAt<decltype(FreeType::GuestModuleClass::get_interface)>(clazz, offsetof(FreeType::GuestModuleClass, get_interface), function));
     return requester ? requester(module, serviceId) : nullptr;
 }
 
@@ -47,12 +54,12 @@ void* Request(FreeType::GuestServiceModuleRec* module, const char* serviceId, co
 extern "C" void* APS5_VABI ft_module_get_service_nid_postfix(FreeType::GuestServiceModuleRec* module, const char* serviceId) {
     if (!module) return nullptr;
     if (void* service = Request(module, serviceId, __func__)) return service;
-    const auto* library = Read(&module->library, __func__);
+    const auto* library = ReadAt<FreeType::GuestServiceLibraryRec*>(module, offsetof(FreeType::GuestServiceModuleRec, library), __func__);
     if (!library) NotImplemented_nid_no_patch(__func__);
-    const auto count = Read(&library->numModules, __func__);
-    if (count > std::size(library->modules)) NotImplemented_nid_no_patch(__func__);
+    const auto count = ReadAt<decltype(FreeType::GuestServiceLibraryRec::numModules)>(library, offsetof(FreeType::GuestServiceLibraryRec, numModules), __func__);
+    if (count > std::extent_v<decltype(FreeType::GuestServiceLibraryRec::modules)>) NotImplemented_nid_no_patch(__func__);
     for (std::uint32_t i = 0; i < count; ++i) {
-        auto* candidate = Read(&library->modules[i], __func__);
+        auto* candidate = ReadAt<FreeType::GuestServiceModuleRec*>(library, offsetof(FreeType::GuestServiceLibraryRec, modules) + i * sizeof(FreeType::GuestServiceModuleRec*), __func__);
         if (candidate == module) continue;
         if (void* service = Request(candidate, serviceId, __func__)) return service;
     }
