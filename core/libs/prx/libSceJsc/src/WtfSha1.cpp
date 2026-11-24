@@ -357,7 +357,9 @@ Jsc::WtfAbi::OptionalString* APS5_VABI _ZN3WTF11Persistence5CoderINS_6StringEE6d
     constexpr auto charactersOffset = offsetof(StringImpl, hashAndFlags) + sizeof(StringImpl::hashAndFlags);
     void* storage = FastMalloc(charactersOffset + byteLength, name);
     auto* characters = static_cast<std::uint8_t*>(storage) + charactersOffset;
-    auto* string = new (storage) StringImpl{2u, length, characters, is8Bit ? Jsc::WtfAbi::StringImplFlag8Bit : 0u};
+    const StringImpl header{2u, length, characters, is8Bit ? Jsc::WtfAbi::StringImplFlag8Bit : 0u};
+    std::memcpy(storage, &header, charactersOffset);
+    auto* string = static_cast<StringImpl*>(storage);
     DecodeData(*decoder, characters, byteLength);
     result->value = string;
     result->hasValue = true;
